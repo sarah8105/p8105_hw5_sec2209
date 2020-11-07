@@ -28,8 +28,12 @@ options(
 scale_colour_discrete = scale_colour_viridis_d
 scale_fill_discrete = scale_fill_viridis_d
 
-set.seed(2346)
 ```
+
+
+## Problem 1
+
+
 
 
 ## Problem 2
@@ -81,9 +85,9 @@ From this plot, you can see that study participants in the control arm have a re
 
 ## Problem 3 
 
-In the following code chunk, I create a simulation to explore the effects of power on a simple linear regression. For this simulation, I set the sample size to 30 and standard deviation to 5. I modify the sample mean in 1-unit increments from 0 to 6, running 5,000 simulated data sets per mean. 
+In the following code chunk, I run a simulation to explore the effects of power on a simple linear regression. For this simulation, I set the sample size to 30 and standard deviation to 5. I modify the sample mean in 1-unit increments from 0 to 6, running 5,000 simulated data sets per mean. 
 
-```{r p3_sim}
+```{r p3_sim, cache = TRUE}
 sim_mean_sd = function(n = 30, mu = 0, sigma = 5) {
   
   sim_data = tibble(
@@ -99,7 +103,7 @@ sim_mean_sd = function(n = 30, mu = 0, sigma = 5) {
 sim_results = 
   tibble(mu = c(0, 1, 2, 3, 4, 5, 6)) %>%
   mutate(
-    output_lists = map(.x = mu, ~ rerun(500, sim_mean_sd(mu = .x))),
+    output_lists = map(.x = mu, ~ rerun(5000, sim_mean_sd(mu = .x))),
     estimate_dfs = map(output_lists, bind_rows)
     ) %>%
   select(-output_lists) %>%
@@ -107,6 +111,7 @@ sim_results =
 
 ```
 
+In the following code chunk, I plot the proportion of times the null was rejected (at an α of 0.05) by the true value of μ.
 
 ```{r p3_plot1}
 sim_results_summary = sim_results %>%
@@ -118,21 +123,26 @@ sim_results_summary = sim_results %>%
     power = sum(p.value < .05)/n()
   ) %>%
   mutate(
-    group = "Full"
+    group = "All Samples"
   )
   
 sim_results_summary %>%
   ggplot(aes(x = true_mean, y = power, color = true_mean)) +
   geom_point(size = 3) +
+  scale_x_continuous(
+    breaks = c(0, 1, 2, 3, 4, 5, 6)
+  ) +
   labs(
-    title = "Power by the true value of mu",
+    title = "Power by the True Value of μ",
     x = "True Mean",
     y = "Power"
   )
 
 ```
 
+As shown in this plot, power (or the proportion of times the null was rejected) increases as the effect size increases.  
 
+In the following code chunk, I plot the average estimate of μ by the true value of μ for the full simulation results and for the portion of samples in which the null was rejected.  
 
 ```{r p3_plot2}
 pd <- position_dodge(0.5) 
@@ -146,15 +156,21 @@ sim_results %>%
     std_est_mean = sd(estimate)
   ) %>%
   mutate(
-    group = "Null Rejected"
+    group = "Samples where Null Rejected"
   ) %>%
   bind_rows(sim_results_summary) %>%
   ggplot(aes(x = true_mean, y = avg_est_mean, group = group, color = group)) +
     geom_errorbar(aes(ymin = avg_est_mean - std_est_mean, ymax = avg_est_mean + std_est_mean), position = pd, width = .1) +
     geom_point(size = 3, position = pd) +
+  scale_x_continuous(
+    breaks = c(0, 1, 2, 3, 4, 5, 6)
+  ) +
   labs(
-    title = "Average estimate of mu by the true value of mu",
+    title = "Average Estimate of μ by the True Value of μ",
     x = "True Mean",
     y = "Estimated Mean"
   )
 ```
+
+As shown in this plot, the sample average estimate of μ for which the null is rejected is approximately equal to the true value of μ as the effect size increases but is less equal to the true value of μ as the effect size decreases. This occurs because the subset of samples in which the null hypothesis is rejected will have an estimated μ further away from 0. For samples with a true μ that is closer to 0, this subset represents a smaller portion of samples that randomly have an average estimated μ that is higher than the true μ. For samples with a true μ that is further from 0, this subset represents the majority of samples. 
+
