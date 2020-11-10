@@ -34,7 +34,7 @@ scale_fill_discrete = scale_fill_viridis_d
 
 ## Problem 1
 
-```{r p1_explore}
+```{r p1_explore, cache = TRUE}
 homicide_df = read_csv(file = "https://raw.githubusercontent.com/washingtonpost/data-homicides/master/homicide-data.csv") %>%
   mutate(
     city_state = str_c(city, state, sep = "_")
@@ -49,14 +49,36 @@ homicide_summary =
     tot_hom = n(),
     unsolv_hom = sum(disposition %in% c("Closed without arrest", "Open/No arrest"))
   )
-```
 
-```{r p1_function}
 prop.test(
   homicide_summary %>% filter(city_state == "Baltimore_MD") %>% pull(unsolv_hom),
   homicide_summary %>% filter(city_state == "Baltimore_MD") %>% pull(tot_hom)) %>%
   broom::tidy()
 ```
+
+
+```{r p1_function}
+results_df = 
+  homicide_summary %>%
+  mutate(
+    prop_tests = map2(.x = unsolv_hom, .y = tot_hom, ~prop.test(x = .x, n = .y)),
+    tidy_tests = map(.x = prop_tests, ~broom::tidy(.x))
+  ) %>%
+  select(-prop_tests) %>%
+  unnest(tidy_tests) %>%
+  select(city_state, estimate, conf.low, conf.high)
+```
+
+
+```{r p1_plot}
+results_df %>%
+  mutate(city_state = fct_reorder(city_state, estimate)) %>%
+  ggplot(aes(x = city_state, y = estimate)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+```
+
 
 
 ## Problem 2
