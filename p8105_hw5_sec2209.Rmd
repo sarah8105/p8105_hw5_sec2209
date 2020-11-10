@@ -28,20 +28,25 @@ options(
 
 scale_colour_discrete = scale_colour_viridis_d
 scale_fill_discrete = scale_fill_viridis_d
-
 ```
 
 
 ## Problem 1
 
-```{r p1_explore, cache = TRUE}
+In this first code chunk, I pull the Washington Post data on homicides in 50 large US cities. I create a `city_state` variable that concatenate the city and state that the homicde occurred in and remove an observation that was erroneously attributed to Tulsa, AL. 
+
+```{r p1_import, cache = TRUE}
 homicide_df = read_csv(file = "https://raw.githubusercontent.com/washingtonpost/data-homicides/master/homicide-data.csv") %>%
   mutate(
     city_state = str_c(city, state, sep = "_")
   ) %>%
   select(city_state, disposition) %>%
   filter(city_state != "Tulsa_AL")
+```
 
+In the next code chunk, I aggregate the homicide data to the city level and two variables that represent the total number of homicides (`tot_hom`) and the number of unsolved homicides (`unsolve_hom`) in each respective city. I also use the `prop.test` function to estimate the proportion of homicides that are unsolved in Baltimore, MD.
+
+```{r p1_aggregate}
 homicide_summary =
   homicide_df %>%
   group_by(city_state) %>%
@@ -56,6 +61,9 @@ prop.test(
   broom::tidy()
 ```
 
+An estimated 64.6% of homicides in Baltimore are unsolved (95% CI: 62.8%-66.3%)
+
+In the next code chunk, I write a function that iterates over all cities within the data to calculate the estimated proportion of homicides that are unsolved and their 95% confidence intervals.
 
 ```{r p1_function}
 results_df = 
@@ -69,16 +77,22 @@ results_df =
   select(city_state, estimate, conf.low, conf.high)
 ```
 
-
+Finally, I plot the results from this function.
 ```{r p1_plot}
 results_df %>%
   mutate(city_state = fct_reorder(city_state, estimate)) %>%
   ggplot(aes(x = city_state, y = estimate)) +
   geom_point() +
   geom_errorbar(aes(ymin = conf.low, ymax = conf.high)) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1))
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+  labs(
+    title = "Estimated Proportion of Unsolved Homicides by City",
+    x = "City",
+    y = "Unsolved Homicides"
+  )
 ```
 
+From this graph, Richmond, VA has the lowest estimated proportion of unsolved homicides at below 30% and Chicago, IL has the highest proportion of unsolved homicides at above 70%.
 
 
 ## Problem 2
@@ -86,7 +100,10 @@ results_df %>%
 Problem 2 concerns data from a longitudinal study that includes control and experimental study arms. In the following code chunk, I import data on each study participant that have been stored as separate csv files. I create an `import_csv` function that is used to import and clean each csv file and iterate over all csv file using `purrr::map`. I also create variables representing the study arm and study ID of each participant. Since study ID is duplicated over the study arms and is therefore not unique, I also create a `unique_id` variable that can be used to identify each participant.
 
 ```{r p2_import, message = FALSE}
-p2_df = tibble(file_name = list.files(path = "./data/"))
+p2_df = 
+  tibble(
+    file_name = list.files(path = "./data/")
+    )
 
 import_csv = function(file) {
   read_csv(file) %>%
@@ -108,7 +125,6 @@ p2_df = p2_df %>%
     ) %>%
   select(-file_name) %>%
   unnest()
-
 ```
 
 In the following code chunk, I create a spaghetti plot that displays the observations on each subject over time, color coded by study arm.
@@ -152,8 +168,8 @@ sim_results =
     estimate_dfs = map(output_lists, bind_rows)
     ) %>%
   select(-output_lists) %>%
-  unnest(estimate_dfs)
-
+  unnest(estimate_dfs) %>%
+  select(mu, estimate, p.value)
 ```
 
 In the following code chunk, I plot the proportion of times the null was rejected (at an α of 0.05) by the true value of μ.
@@ -172,8 +188,8 @@ sim_results_summary = sim_results %>%
   )
   
 sim_results_summary %>%
-  ggplot(aes(x = true_mean, y = power, color = true_mean)) +
-  geom_point(size = 3) +
+  ggplot(aes(x = true_mean, y = power)) +
+  geom_bar(stat = "identity") +
   scale_x_continuous(
     breaks = c(0, 1, 2, 3, 4, 5, 6)
   ) +
@@ -181,8 +197,7 @@ sim_results_summary %>%
     title = "Power by the True Value of μ",
     x = "True Mean",
     y = "Power"
-  )
-
+  ) 
 ```
 
 As shown in this plot, power (or the proportion of times the null was rejected) increases as the effect size increases.  
@@ -205,8 +220,8 @@ sim_results %>%
   ) %>%
   bind_rows(sim_results_summary) %>%
   ggplot(aes(x = true_mean, y = avg_est_mean, group = group, color = group)) +
-    geom_errorbar(aes(ymin = avg_est_mean - std_est_mean, ymax = avg_est_mean + std_est_mean), position = pd, width = .1) +
-    geom_point(size = 3, position = pd) +
+    geom_errorbar(aes(ymin = avg_est_mean - std_est_mean, ymax = avg_est_mean + std_est_mean), position = pd, width = .2) +
+    geom_point(size = 4, position = pd) +
   scale_x_continuous(
     breaks = c(0, 1, 2, 3, 4, 5, 6)
   ) +
