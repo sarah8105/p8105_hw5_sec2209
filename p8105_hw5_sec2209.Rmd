@@ -11,6 +11,7 @@ This is my fifth homework assignment for P8105.
 library(tidyverse)
 library(rvest)
 library(readr)
+library(httr)
 
 knitr::opts_chunk$set(
   fig.width = 6,
@@ -33,12 +34,34 @@ scale_fill_discrete = scale_fill_viridis_d
 
 ## Problem 1
 
+```{r p1_explore}
+homicide_df = read_csv(file = "https://raw.githubusercontent.com/washingtonpost/data-homicides/master/homicide-data.csv") %>%
+  mutate(
+    city_state = str_c(city, state, sep = "_")
+  ) %>%
+  select(city_state, disposition) %>%
+  filter(city_state != "Tulsa_AL")
 
+homicide_summary =
+  homicide_df %>%
+  group_by(city_state) %>%
+  summarize(
+    tot_hom = n(),
+    unsolv_hom = sum(disposition %in% c("Closed without arrest", "Open/No arrest"))
+  )
+```
+
+```{r p1_function}
+prop.test(
+  homicide_summary %>% filter(city_state == "Baltimore_MD") %>% pull(unsolv_hom),
+  homicide_summary %>% filter(city_state == "Baltimore_MD") %>% pull(tot_hom)) %>%
+  broom::tidy()
+```
 
 
 ## Problem 2
 
-Problem 2 concerns data from a longitudinal study that includes a control and experimental study arms. In the following code chunk, I import data on each study participant that have been stored as separate csv files. I create an `import_csv` function that is used to import and clean each csv file and iterate over all csv file using `purrr::map`. I also create variables representing the study arm and study ID of each participant. Since study ID is duplicated over the study arms and is therefore not unique, I also create a `unique_id` variable that can be used to identify each participant.
+Problem 2 concerns data from a longitudinal study that includes control and experimental study arms. In the following code chunk, I import data on each study participant that have been stored as separate csv files. I create an `import_csv` function that is used to import and clean each csv file and iterate over all csv file using `purrr::map`. I also create variables representing the study arm and study ID of each participant. Since study ID is duplicated over the study arms and is therefore not unique, I also create a `unique_id` variable that can be used to identify each participant.
 
 ```{r p2_import, message = FALSE}
 p2_df = tibble(file_name = list.files(path = "./data/"))
